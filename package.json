@@ -1,0 +1,32 @@
+{
+  "name": "simple-cache-id",
+  "version": "1.0.0",
+  "description": "A lightweight in-memory cache for Node.js with default TTL and wrap() helper.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "cache",
+    "in-memory",
+    "ttl",
+    "node-cache",
+    "wrap",
+    "simple-cache",
+    "javascript",
+    "nodejs"
+  ],
+  "author": "Syarwani (https://github.com/ibnushahraa)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ibnushahraa/simple-cache-id.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ibnushahraa/simple-cache-id/issues"
+  },
+  "homepage": "https://github.com/ibnushahraa/simple-cache-id#readme",
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
+}

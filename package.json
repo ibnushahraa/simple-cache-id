@@ -1,6 +1,6 @@
 {
   "name": "simple-cache-id",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A lightweight in-memory cache for Node.js with default TTL and wrap() helper.",
   "main": "src/index.js",
   "types": "index.d.ts",

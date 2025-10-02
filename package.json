@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A lightweight in-memory cache for Node.js with default TTL and wrap() helper.",
   "main": "src/index.js",
+  "types": "index.d.ts",
   "scripts": {
     "test": "jest"
   },

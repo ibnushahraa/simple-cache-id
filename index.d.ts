@@ -2,14 +2,38 @@
 // TypeScript definitions for simple-cache-id
 
 /**
+ * Configuration options for SimpleCache
+ */
+interface SimpleCacheOptions {
+  /**
+   * Interval untuk check expired keys (dalam detik)
+   * @default 5
+   */
+  checkInterval?: number;
+
+  /**
+   * Enable persistent storage ke binary file
+   * @default false
+   */
+  persistent?: boolean;
+
+  /**
+   * Path to binary file
+   * @default './.cache/simple-cache.sdb'
+   */
+  persistPath?: string;
+}
+
+/**
  * A lightweight in-memory cache with default TTL and helper wrap()
  */
 declare class SimpleCache {
   /**
    * Create a new cache instance
    * @param defaultTtl - Default TTL in seconds (0 = no expiration)
+   * @param options - Configuration options (or number for backward compatibility as checkInterval)
    */
-  constructor(defaultTtl?: number);
+  constructor(defaultTtl?: number, options?: SimpleCacheOptions | number);
 
   /**
    * Store a value in the cache with optional TTL
@@ -40,6 +64,11 @@ declare class SimpleCache {
   flush(): void;
 
   /**
+   * Destroy cache instance, stop all intervals, and save to binary if persistent=true
+   */
+  destroy(): void;
+
+  /**
    * Get cache statistics
    * @returns Object containing number of keys
    */
@@ -53,6 +82,14 @@ declare class SimpleCache {
    * @returns The cached or computed value
    */
   wrap<T>(key: string, fn: () => T | Promise<T>, ttl?: number): Promise<T>;
+}
+
+declare namespace SimpleCache {
+  export interface Options {
+    checkInterval?: number;
+    persistent?: boolean;
+    persistPath?: string;
+  }
 }
 
 export = SimpleCache;

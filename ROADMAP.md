@@ -17,18 +17,31 @@ This document outlines the planned features and improvements for `simple-cache-i
 - TypeScript definitions (`index.d.ts`)
 - Type safety for TypeScript projects
 
-### v1.1.0 - Persistent Storage (Current)
+### v1.1.0 - Persistent Storage
 - Binary persistent storage (`.sdb` format)
 - setInterval-based cleanup (more efficient)
 - `destroy()` method for proper cleanup
 - Auto-save on destroy, auto-load on constructor
 - TTL-aware persistence (only saves valid entries)
 
+### v1.1.1 - Graceful Shutdown & Fixes
+- Graceful shutdown handling (SIGINT, SIGTERM, beforeExit)
+- Smart default path detection
+- Multi-type key support (string, number)
+- Fixed MaxListenersExceeded warning
+
+### v1.2.0 - Auto-save & Multi-instance (Current)
+- Debounced auto-save (saves N seconds after last change)
+- Named cache instances with `name` option
+- Multi-instance protection (prevents concurrent writes)
+- Improved persistent mode with better error messages
+- `saveDelay` option for configurable auto-save delay
+
 ---
 
 ## 🚀 Planned
 
-### v1.2.0 - Core Improvements
+### v1.3.0 - Core Improvements
 **Focus: Production-ready core features**
 
 - [ ] **LRU Eviction Policy**
@@ -44,10 +57,10 @@ This document outlines the planned features and improvements for `simple-cache-i
   - `on('delete', callback)` - When key is deleted
   - Useful for monitoring, logging, and metrics
 
-- [ ] **Auto-save Interval**
-  - `autoSave` option for periodic persistence
+- [ ] **Periodic Auto-save**
+  - `autoSaveInterval` option for periodic persistence
   - Configurable interval (e.g., every 5 minutes)
-  - Better data safety without waiting for destroy
+  - Complements debounced auto-save
 
 **Example:**
 ```js
@@ -55,7 +68,9 @@ const cache = new SimpleCache(60, {
   maxSize: 1000,
   evictionPolicy: 'lru',
   persistent: true,
-  autoSave: 300, // Auto-save every 5 minutes
+  name: 'my-cache',
+  saveDelay: 3, // Debounced save
+  autoSaveInterval: 300, // Periodic save every 5 minutes
 });
 
 cache.on('evicted', (key) => {
@@ -65,7 +80,7 @@ cache.on('evicted', (key) => {
 
 ---
 
-### v1.3.0 - Performance & Efficiency
+### v1.4.0 - Performance & Efficiency
 **Focus: Optimization and advanced features**
 
 - [ ] **Compression**
@@ -101,7 +116,7 @@ userCache.set('1', data); // Internally: "user:1"
 
 ---
 
-### v1.4.0 - Plugin System (Extensions)
+### v1.5.0 - Plugin System (Extensions)
 **Focus: Modular plugins that use the cache core**
 
 Plugins are separate modules that leverage `simple-cache-id` for specific use cases.
@@ -375,9 +390,9 @@ We'd love to hear your use cases and suggestions!
 
 ## 📅 Timeline
 
-- **v1.2.0** - Q1 2025 (Core improvements)
-- **v1.3.0** - Q2 2025 (Performance & efficiency)
-- **v1.4.0** - Q3 2025 (Plugin system)
+- **v1.3.0** - Q1 2025 (Core improvements: LRU, Events, Periodic save)
+- **v1.4.0** - Q2 2025 (Performance & efficiency)
+- **v1.5.0** - Q3 2025 (Plugin system)
 - **v2.0.0** - Q4 2025 (Breaking changes)
 
 *Timeline is tentative and subject to change based on community feedback and priorities.*

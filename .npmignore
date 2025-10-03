@@ -1,16 +1,2 @@
 # Development files
-.claude/
-.git/
-.github/workflows/
-
-# Test files
-test/
-*.test.js
-
-# Documentation
-CONTRIBUTING.md
-ROADMAP.md
-
-# Build artifacts
-.cache/
-*.sdb
+.claude

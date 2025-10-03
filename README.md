@@ -286,9 +286,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 See [ROADMAP.md](ROADMAP.md) for planned features and future development.
 
 **Upcoming:**
-- **v1.2.0** - LRU eviction, Events/Hooks, Auto-save interval
-- **v1.3.0** - Compression, Batch operations, Namespace support
-- **v1.4.0** - Plugin system (OTP validator, Rate limiter, Session manager, etc.)
+- **v1.3.0** - LRU eviction, Events/Hooks, Periodic auto-save
+- **v1.4.0** - Compression, Batch operations, Namespace support
+- **v1.5.0** - Plugin system (OTP validator, Rate limiter, Session manager, etc.)
 
 **Plugins (coming soon):**
 ```js

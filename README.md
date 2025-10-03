@@ -74,28 +74,35 @@ cache.destroy();
 ```js
 const SimpleCache = require("simple-cache-id");
 
-// Enable persistent storage
+// Enable persistent storage with cache name
 const cache = new SimpleCache(60, {
   checkInterval: 5,
-  persistent: true
-  // persistPath defaults to ./.cache/simple-cache.sdb
+  persistent: true,
+  name: 'my-app-cache', // Required! Creates ./.cache/my-app-cache.sdb
+  saveDelay: 3 // Auto-saves 3 seconds after last change (default: 3)
+});
+
+// Or use custom path instead of name
+const cache2 = new SimpleCache(60, {
+  persistent: true,
+  persistPath: './custom/path/cache.sdb' // Alternative to 'name'
 });
 
 // Set data
 cache.set("user:1", { id: 1, name: "Alice" }, 3600); // 1 hour TTL
 cache.set("config", { theme: "dark" }, 0); // permanent (no TTL)
 
-// Data is automatically saved to binary file on destroy
-cache.destroy();
+// Data is auto-saved 3 seconds after last change
+// No need to call destroy() unless you want immediate save
 
-// Restart your app...
-// Data is automatically loaded from binary file
-const cache2 = new SimpleCache(60, {
-  persistent: true
+// On next app restart...
+const cache3 = new SimpleCache(60, {
+  persistent: true,
+  name: 'my-app-cache' // Same name = same cache file
 });
 
-console.log(cache2.get("user:1")); // { id: 1, name: "Alice" }
-console.log(cache2.get("config")); // { theme: "dark" }
+console.log(cache3.get("user:1")); // { id: 1, name: "Alice" }
+console.log(cache3.get("config")); // { theme: "dark" }
 ```
 
 ### Backward Compatibility
@@ -142,14 +149,26 @@ Create a new cache instance with an optional default TTL (in seconds).
 - `options` (object):
   - `checkInterval` (number): Interval to check for expired keys in seconds (default: 5)
   - `persistent` (boolean): Enable persistent storage to binary file (default: false)
-  - `persistPath` (string): Path to binary file (default: './.cache/simple-cache.sdb')
+  - `name` (string): **Required if `persistent=true`** - Unique cache name (creates `./.cache/{name}.sdb`)
+  - `persistPath` (string): Custom path to binary file (overrides `name`)
+  - `saveDelay` (number): Debounce delay in seconds before auto-save (default: 3)
+
+**Important:** When `persistent: true`, you must provide either `name` or `persistPath`.
 
 **Example:**
 ```js
+// Using name (recommended)
 const cache = new SimpleCache(10, {
   checkInterval: 5,
   persistent: true,
-  persistPath: './.cache/simple-cache.sdb' // optional, this is the default
+  name: 'user-cache', // Creates ./.cache/user-cache.sdb
+  saveDelay: 5 // Auto-saves 5 seconds after last change
+});
+
+// Using custom path
+const cache2 = new SimpleCache(10, {
+  persistent: true,
+  persistPath: './data/cache.sdb'
 });
 ```
 
@@ -188,9 +207,9 @@ Clear all keys and stop cleanup interval.
 
 ### `destroy()`
 
-Destroy cache instance, stop all intervals, and save to binary file if persistent mode is enabled.
+Destroy cache instance, stop all intervals, and immediately save to binary file if persistent mode is enabled.
 
-**Important:** Always call `destroy()` before exiting your application when using persistent mode!
+**Note:** With auto-save (debounced), you don't need to call `destroy()` on normal exit. However, calling it ensures immediate save and proper cleanup.
 
 ### `stats()`
 
@@ -229,7 +248,9 @@ When `persistent: true`, the cache uses a custom binary format (`.sdb` file) sim
 
 - **On constructor:** Automatically loads from binary file (if exists)
 - **During runtime:** All operations happen in memory only (zero I/O overhead)
-- **On destroy:** Saves snapshot to binary file (only non-expired entries)
+- **Auto-save:** Debounced save (N seconds after last change, default: 3 seconds)
+- **On destroy:** Immediately saves snapshot to binary file (only non-expired entries)
+- **Graceful shutdown:** Automatically saves on SIGINT/SIGTERM/beforeExit
 
 **Binary Format:**
 - Header: Magic "SDB", version, entry count
@@ -240,6 +261,11 @@ When `persistent: true`, the cache uses a custom binary format (`.sdb` file) sim
 - Only saves entries with valid TTL (not expired)
 - Expired entries are filtered out on both save and load
 - Supports permanent keys (TTL = 0)
+
+**Multiple Instances:**
+- Each cache name/path can only have ONE active instance
+- Prevents data corruption from concurrent writes
+- Throws error if file is already in use
 
 ---
 

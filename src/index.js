@@ -14,7 +14,9 @@ class SimpleCache {
      * @param {object} [options={}] - Configuration options
      * @param {number} [options.checkInterval=5] - Interval to check for expired keys (in seconds)
      * @param {boolean} [options.persistent=false] - Enable persistent storage to binary file
-     * @param {string} [options.persistPath='./.cache/simple-cache.sdb'] - Path to binary file
+     * @param {string} [options.name] - Unique name for this cache (required if persistent=true)
+     * @param {string} [options.persistPath] - Custom path to binary file (overrides name)
+     * @param {number} [options.saveDelay=3] - Debounce delay in seconds (saves N seconds after last change)
      */
     constructor(defaultTtl = 0, options = {}) {
         // Support backward compatibility: if options is a number, treat it as checkInterval
@@ -37,14 +39,42 @@ class SimpleCache {
         /** @type {boolean} */
         this.persistent = options.persistent || false;
 
-        /** @type {string} */
-        this.persistPath = options.persistPath || this._getDefaultPersistPath();
+        /** @type {number} - Debounce delay in seconds (time to wait after last change before saving) */
+        this.saveDelay = options.saveDelay || 3;
 
         /** @type {NodeJS.Timeout|null} */
         this.cleanupInterval = null;
 
+        /** @type {NodeJS.Timeout|null} - Debounced save timeout */
+        this._saveTimeout = null;
+
+        // Generate persistPath from name or use custom path
+        if (this.persistent) {
+            if (options.persistPath) {
+                this.persistPath = options.persistPath;
+            } else if (options.name) {
+                this.persistPath = this._getPathFromName(options.name);
+            } else {
+                throw new Error('[SimpleCache] persistent=true requires either "name" or "persistPath" option');
+            }
+        } else {
+            this.persistPath = null;
+        }
+
         // Load from binary if persistent=true
         if (this.persistent) {
+            // Check if file is already in use by another instance
+            if (!SimpleCache._activeFiles) {
+                SimpleCache._activeFiles = new Map();
+            }
+
+            if (SimpleCache._activeFiles.has(this.persistPath)) {
+                throw new Error(`[SimpleCache] Cache file already in use by another instance: ${this.persistPath}`);
+            }
+
+            // Register this instance
+            SimpleCache._activeFiles.set(this.persistPath, this);
+
             this._loadFromBinary();
             this._setupGracefulShutdown();
         }
@@ -56,20 +86,21 @@ class SimpleCache {
     }
 
     /**
-     * Get default persist path based on main script location
+     * Get persist path from cache name
      * @private
+     * @param {string} name - Cache name
      * @returns {string}
      */
-    _getDefaultPersistPath() {
+    _getPathFromName(name) {
         // Try to use the main script's directory (where the app is run from)
         const mainModule = require.main;
         if (mainModule && mainModule.filename) {
             const mainDir = path.dirname(mainModule.filename);
-            return path.join(mainDir, '.cache', 'simple-cache.sdb');
+            return path.join(mainDir, '.cache', `${name}.sdb`);
         }
 
         // Fallback to current working directory
-        return path.join(process.cwd(), '.cache', 'simple-cache.sdb');
+        return path.join(process.cwd(), '.cache', `${name}.sdb`);
     }
 
     /**
@@ -107,6 +138,39 @@ class SimpleCache {
     }
 
     /**
+     * Schedule a debounced save - saves N seconds after the last change
+     * @private
+     */
+    _scheduleSave() {
+        // Clear existing timeout (debounce)
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+        }
+
+        // Schedule new save after saveDelay seconds
+        this._saveTimeout = setTimeout(() => {
+            this._saveToBinary();
+            this._saveTimeout = null;
+        }, this.saveDelay * 1000);
+
+        // Prevent Node.js from hanging due to timeout
+        if (this._saveTimeout.unref) {
+            this._saveTimeout.unref();
+        }
+    }
+
+    /**
+     * Cancel scheduled save
+     * @private
+     */
+    _cancelScheduledSave() {
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+            this._saveTimeout = null;
+        }
+    }
+
+    /**
      * Store a value in the cache with optional TTL.
      * @param {string|number} key - Unique cache key
      * @param {any} value - Value to store
@@ -134,6 +198,11 @@ class SimpleCache {
         } else {
             // Remove expiry if TTL = 0 (permanent)
             this.expiries.delete(stringKey);
+        }
+
+        // Schedule debounced save
+        if (this.persistent) {
+            this._scheduleSave();
         }
 
         return "OK";
@@ -173,7 +242,14 @@ class SimpleCache {
         const stringKey = String(key);
 
         this.expiries.delete(stringKey);
-        return this.store.delete(stringKey) ? 1 : 0;
+        const deleted = this.store.delete(stringKey) ? 1 : 0;
+
+        // Schedule debounced save if something was deleted
+        if (deleted && this.persistent) {
+            this._scheduleSave();
+        }
+
+        return deleted;
     }
 
     /**
@@ -183,20 +259,32 @@ class SimpleCache {
         this._stopCleanup();
         this.expiries.clear();
         this.store.clear();
+
+        // Cancel any pending save after flush
+        if (this.persistent) {
+            this._cancelScheduledSave();
+        }
     }
 
     /**
      * Destroy cache instance and stop all intervals
      */
     destroy() {
-        // Save to binary before destroy if persistent=true
-        if (this.persistent) {
+        // If there's a pending save, execute it immediately
+        if (this.persistent && this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
             this._saveToBinary();
+            this._saveTimeout = null;
         }
 
         // Remove from instances set
         if (SimpleCache._instances) {
             SimpleCache._instances.delete(this);
+        }
+
+        // Remove from active files registry
+        if (this.persistent && SimpleCache._activeFiles) {
+            SimpleCache._activeFiles.delete(this.persistPath);
         }
 
         this._stopCleanup();
@@ -267,10 +355,23 @@ class SimpleCache {
                 }
             };
 
+            const beforeExitHandler = () => {
+                // Save all instances that have pending changes
+                for (const instance of SimpleCache._instances) {
+                    if (instance._saveTimeout) {
+                        // Has pending save - execute immediately
+                        clearTimeout(instance._saveTimeout);
+                        instance._saveToBinary();
+                        instance._saveTimeout = null;
+                    }
+                }
+            };
+
             // Save on process termination signals (only once globally)
             process.once('SIGINT', () => globalSaveHandler('SIGINT'));
             process.once('SIGTERM', () => globalSaveHandler('SIGTERM'));
-            process.once('beforeExit', () => globalSaveHandler('beforeExit'));
+            // Save pending changes on normal exit
+            process.once('beforeExit', beforeExitHandler);
         }
     }
 

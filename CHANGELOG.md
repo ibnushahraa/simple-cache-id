@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-01-03
+
+### Added
+- **Debounced auto-save**: Automatic save N seconds after last change (default: 3 seconds)
+  - New `saveDelay` option to configure debounce delay
+  - Reduces disk I/O by batching multiple operations
+  - Pending saves execute immediately on `destroy()` or graceful shutdown
+- **Named cache instances**: Use `name` option for simpler cache file management
+  - Auto-generates path as `./.cache/{name}.sdb`
+  - Alternative to manual `persistPath` configuration
+  - Detects main script directory for consistent paths
+- **Multi-instance protection**: Prevents multiple instances using the same cache file
+  - Throws error if cache file is already in use
+  - Prevents data corruption from concurrent writes
+  - Automatic cleanup on `destroy()`
+
+### Changed
+- **Breaking**: `persistent: true` now requires either `name` or `persistPath` option
+  - Old: `{ persistent: true }` (used default path)
+  - New: `{ persistent: true, name: 'my-cache' }` or `{ persistent: true, persistPath: './cache.sdb' }`
+- Cache persistence no longer requires manual `destroy()` call
+  - Auto-save handles most scenarios
+  - `destroy()` still recommended for immediate save
+
+### Improved
+- Reduced disk I/O with debounced saves
+- Better error messages for configuration issues
+- More reliable graceful shutdown handling
+- Clearer documentation for persistent mode
+
 ## [1.1.1] - 2025-01-03
 
 ### Added

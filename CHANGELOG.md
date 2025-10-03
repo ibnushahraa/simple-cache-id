@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-01-03
+
+### Added
+- **Graceful shutdown**: Automatic cache save on process termination (SIGINT, SIGTERM, beforeExit)
+- **Smart default path**: Auto-detect persist path based on main script location (`require.main`)
+- **Multi-type key support**: Keys automatically converted to string (supports number, string, etc.)
+
+### Fixed
+- MaxListenersExceeded warning when creating multiple cache instances
+- Persistent cache not saving on application shutdown
+- Path inconsistency between save and load operations
+
+### Improved
+- Global event handler for all cache instances (prevents listener leak)
+- Skip save operation if cache is empty on shutdown
+- Better error messages for debugging
+
 ## [1.1.0] - 2025-01-XX
 
 ### Added

@@ -38,7 +38,7 @@ class SimpleCache {
         this.persistent = options.persistent || false;
 
         /** @type {string} */
-        this.persistPath = options.persistPath || './.cache/simple-cache.sdb';
+        this.persistPath = options.persistPath || this._getDefaultPersistPath();
 
         /** @type {NodeJS.Timeout|null} */
         this.cleanupInterval = null;
@@ -46,12 +46,30 @@ class SimpleCache {
         // Load from binary if persistent=true
         if (this.persistent) {
             this._loadFromBinary();
+            this._setupGracefulShutdown();
         }
 
         // Start cleanup interval if defaultTtl is set
         if (this.defaultTtl > 0 || this.checkInterval > 0) {
             this._startCleanup();
         }
+    }
+
+    /**
+     * Get default persist path based on main script location
+     * @private
+     * @returns {string}
+     */
+    _getDefaultPersistPath() {
+        // Try to use the main script's directory (where the app is run from)
+        const mainModule = require.main;
+        if (mainModule && mainModule.filename) {
+            const mainDir = path.dirname(mainModule.filename);
+            return path.join(mainDir, '.cache', 'simple-cache.sdb');
+        }
+
+        // Fallback to current working directory
+        return path.join(process.cwd(), '.cache', 'simple-cache.sdb');
     }
 
     /**
@@ -90,7 +108,7 @@ class SimpleCache {
 
     /**
      * Store a value in the cache with optional TTL.
-     * @param {string} key - Unique cache key
+     * @param {string|number} key - Unique cache key
      * @param {any} value - Value to store
      * @param {number} [ttl] - TTL in seconds, defaults to constructor TTL
      * @returns {"OK"}
@@ -99,12 +117,15 @@ class SimpleCache {
         // use per-key TTL or default
         const effectiveTtl = typeof ttl === "number" ? ttl : this.defaultTtl;
 
-        this.store.set(key, value);
+        // Convert key to string for consistency
+        const stringKey = String(key);
+
+        this.store.set(stringKey, value);
 
         if (effectiveTtl > 0) {
             // Store expiry time (now + TTL)
             const expiryTime = Date.now() + (effectiveTtl * 1000);
-            this.expiries.set(key, expiryTime);
+            this.expiries.set(stringKey, expiryTime);
 
             // Ensure cleanup interval is running
             if (!this.cleanupInterval) {
@@ -112,7 +133,7 @@ class SimpleCache {
             }
         } else {
             // Remove expiry if TTL = 0 (permanent)
-            this.expiries.delete(key);
+            this.expiries.delete(stringKey);
         }
 
         return "OK";
@@ -120,33 +141,39 @@ class SimpleCache {
 
     /**
      * Retrieve a value from the cache.
-     * @param {string} key
+     * @param {string|number} key
      * @returns {any|null}
      */
     get(key) {
-        if (!this.store.has(key)) return null;
+        // Convert key to string for consistency
+        const stringKey = String(key);
+
+        if (!this.store.has(stringKey)) return null;
 
         // Lazy deletion: check if expired
-        if (this.expiries.has(key)) {
-            const expiryTime = this.expiries.get(key);
+        if (this.expiries.has(stringKey)) {
+            const expiryTime = this.expiries.get(stringKey);
             if (Date.now() >= expiryTime) {
-                this.store.delete(key);
-                this.expiries.delete(key);
+                this.store.delete(stringKey);
+                this.expiries.delete(stringKey);
                 return null;
             }
         }
 
-        return this.store.get(key);
+        return this.store.get(stringKey);
     }
 
     /**
      * Delete a key.
-     * @param {string} key
+     * @param {string|number} key
      * @returns {number} - 1 if deleted, 0 if not found
      */
     del(key) {
-        this.expiries.delete(key);
-        return this.store.delete(key) ? 1 : 0;
+        // Convert key to string for consistency
+        const stringKey = String(key);
+
+        this.expiries.delete(stringKey);
+        return this.store.delete(stringKey) ? 1 : 0;
     }
 
     /**
@@ -165,6 +192,11 @@ class SimpleCache {
         // Save to binary before destroy if persistent=true
         if (this.persistent) {
             this._saveToBinary();
+        }
+
+        // Remove from instances set
+        if (SimpleCache._instances) {
+            SimpleCache._instances.delete(this);
         }
 
         this._stopCleanup();
@@ -201,6 +233,44 @@ class SimpleCache {
         } catch (err) {
             // Silent fail, start fresh on error
             console.error('Failed to load from binary:', err.message);
+        }
+    }
+
+    /**
+     * Setup graceful shutdown handlers to save cache before exit
+     * @private
+     */
+    _setupGracefulShutdown() {
+        // Track instances to handle multiple cache instances
+        if (!SimpleCache._instances) {
+            SimpleCache._instances = new Set();
+        }
+        SimpleCache._instances.add(this);
+
+        // Only setup handlers once globally
+        if (!SimpleCache._handlersSetup) {
+            SimpleCache._handlersSetup = true;
+
+            const globalSaveHandler = (signal) => {
+                // Save all instances
+                for (const instance of SimpleCache._instances) {
+                    if (instance.store.size === 0) continue;
+
+                    console.log('[SimpleCache] Saving cache to binary before exit...');
+                    instance._saveToBinary();
+                    console.log('[SimpleCache] Cache saved successfully');
+                }
+
+                // Only exit if called from SIGINT/SIGTERM
+                if (signal === 'SIGINT' || signal === 'SIGTERM') {
+                    process.exit(0);
+                }
+            };
+
+            // Save on process termination signals (only once globally)
+            process.once('SIGINT', () => globalSaveHandler('SIGINT'));
+            process.once('SIGTERM', () => globalSaveHandler('SIGTERM'));
+            process.once('beforeExit', () => globalSaveHandler('beforeExit'));
         }
     }
 

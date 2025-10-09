@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-10-09
+
+### Added
+- **ES6 Module support**: Full ESM compatibility with dual package exports
+  - New `src/index.mjs` for native ES6 `import` support
+  - Dual exports in `package.json` (CommonJS + ES Module)
+  - `module` field pointing to ES6 version
+  - Seamless support for both `require()` and `import`
+- **Enhanced TypeScript definitions**: Dual export support in `index.d.ts`
+  - Both `export =` (CommonJS) and `export default` (ESM)
+  - Updated options interface with `name` and `saveDelay` fields
+- **Comprehensive examples**:
+  - `example/basic.mjs` - ES6 Module basic usage
+  - `example/persistent.mjs` - ES6 Module persistent cache
+  - `example/wrap-pattern.mjs` - API caching pattern with ESM
+  - `example/typescript-example.ts` - Type-safe TypeScript usage
+  - `example/README.md` - Complete guide for all examples
+- **Test coverage**: New test suite `test/esm-support.test.js` with 13 tests
+  - CommonJS functionality tests
+  - ES Module file structure validation
+  - Package.json exports configuration tests
+  - Documentation validation tests
+- **Documentation**:
+  - `EXAMPLES.md` - Usage examples for CommonJS, ESM, and TypeScript
+  - Updated README.md with ESM examples and TypeScript usage
+
+### Changed
+- **package.json**: Added `module` and `exports` fields for dual package support
+- **README.md**: Enhanced with ES6 Module and TypeScript examples
+- **.npmignore**: Optimized to exclude development files (test, examples, etc.)
+  - Package size reduced to 55.8 kB (8 files)
+  - Faster npm installation
+
+### Improved
+- Full backward compatibility maintained with CommonJS
+- Better module resolution for modern bundlers (Webpack, Vite, etc.)
+- Enhanced developer experience with multiple example formats
+- Complete TypeScript type safety for both CJS and ESM
+
 ## [1.2.1] - 2025-01-03
 
 ### Changed

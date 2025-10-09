@@ -18,10 +18,20 @@ interface SimpleCacheOptions {
   persistent?: boolean;
 
   /**
-   * Path to binary file
-   * @default './.cache/simple-cache.sdb'
+   * Unique name for this cache (required if persistent=true)
+   */
+  name?: string;
+
+  /**
+   * Custom path to binary file (overrides name)
    */
   persistPath?: string;
+
+  /**
+   * Debounce delay in seconds (saves N seconds after last change)
+   * @default 3
+   */
+  saveDelay?: number;
 }
 
 /**
@@ -88,8 +98,12 @@ declare namespace SimpleCache {
   export interface Options {
     checkInterval?: number;
     persistent?: boolean;
+    name?: string;
     persistPath?: string;
+    saveDelay?: number;
   }
 }
 
+// Support both CommonJS and ES Module
 export = SimpleCache;
+export default SimpleCache;

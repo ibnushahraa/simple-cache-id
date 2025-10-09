@@ -18,6 +18,7 @@ Think of it as a **tiny Redis-like cache** without any dependencies.
 - **Persistent storage to binary file (.sdb)** - cache survives restarts!
 - `wrap()` helper: fetch from cache or compute if missing.
 - Delete, flush, and stats API.
+- **Supports both CommonJS (`require`) and ES6 Modules (`import`)**.
 - TypeScript definitions included.
 - Zero dependencies.
 
@@ -35,6 +36,7 @@ npm install simple-cache-id
 
 ### Basic Usage
 
+#### CommonJS (require)
 ```js
 const SimpleCache = require("simple-cache-id");
 
@@ -68,6 +70,51 @@ async function fetchUser(id) {
 // Clean up when done
 cache.destroy();
 ```
+
+#### ES6 Module (import)
+```js
+import SimpleCache from "simple-cache-id";
+
+// Default TTL = 5 seconds, check interval = 5 seconds
+const cache = new SimpleCache(5, { checkInterval: 5 });
+
+// Set & Get
+cache.set("foo", "bar");
+console.log(cache.get("foo")); // bar
+
+// Override TTL per key
+cache.set("baz", "qux", 1);
+
+// Wrap (async)
+async function fetchUser(id) {
+  console.log("Fetching from DB...");
+  return { id, name: "Ali" };
+}
+
+const user = await cache.wrap("user:1", () => fetchUser(1), 10);
+console.log(user); // { id: 1, name: "Ali" }
+
+// Clean up when done
+cache.destroy();
+```
+
+#### TypeScript
+```typescript
+import SimpleCache from "simple-cache-id";
+
+interface User {
+  id: number;
+  name: string;
+}
+
+const cache = new SimpleCache(60);
+cache.set("user:1", { id: 1, name: "Alice" });
+
+const user = cache.get<User>("user:1");
+console.log(user?.name); // Alice
+```
+
+For more examples, see [EXAMPLES.md](EXAMPLES.md).
 
 ### Persistent Mode (New in v1.1.0!)
 

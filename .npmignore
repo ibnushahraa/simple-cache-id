@@ -1,2 +1,54 @@
 # Development files
-.claude
+.claude/
+.git/
+.github/
+.gitignore
+.npmignore
+
+# Test files
+test/
+*.test.js
+*.spec.js
+jest.config.js
+coverage/
+
+# Example files (users can view on GitHub)
+example/
+
+# Build and dependency files
+node_modules/
+package-lock.json
+
+# Documentation (keep README.md, LICENSE, CHANGELOG.md)
+CONTRIBUTING.md
+ROADMAP.md
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.log
+*.tmp
+.cache/
+.cache-test*/
+*.sdb
+
+# CI/CD files
+.travis.yml
+.gitlab-ci.yml
+circle.yml
+
+# Keep these files for npm package:
+# - README.md
+# - LICENSE
+# - CHANGELOG.md
+# - EXAMPLES.md
+# - package.json
+# - index.d.ts
+# - src/index.js
+# - src/index.mjs

@@ -538,6 +538,32 @@ class SimpleCache {
         this.set(key, result, ttl);
         return result;
     }
+
+    /**
+     * Fallback: try to get fresh data first, use cache as fallback if error.
+     * @template T
+     * @param {string} key
+     * @param {() => (Promise<T>|T)} fn
+     * @param {number} [ttl] - Override TTL
+     * @returns {Promise<T>}
+     */
+    async fallback(key, fn, ttl) {
+        try {
+            // Try to get fresh data first
+            const result = await fn();
+            // If successful, cache it and return
+            this.set(key, result, ttl);
+            return result;
+        } catch (error) {
+            // If failed, try to get from cache
+            const cached = this.get(key);
+            if (cached !== null) {
+                return cached;
+            }
+            // If no cache available, throw the original error
+            throw error;
+        }
+    }
 }
 
 export default SimpleCache;

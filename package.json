@@ -1,6 +1,6 @@
 {
   "name": "simple-cache-id",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "A lightweight in-memory cache for Node.js with default TTL, persistent storage, wrap() and fallback() helpers for resilient caching strategies.",
   "main": "src/index.js",
   "module": "src/index.mjs",

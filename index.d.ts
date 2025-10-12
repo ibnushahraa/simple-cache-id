@@ -92,6 +92,16 @@ declare class SimpleCache {
    * @returns The cached or computed value
    */
   wrap<T>(key: string, fn: () => T | Promise<T>, ttl?: number): Promise<T>;
+
+  /**
+   * Try to get fresh data first, use cache as fallback if error occurs
+   * @param key - Cache key
+   * @param fn - Function to fetch fresh data
+   * @param ttl - Optional TTL override in seconds
+   * @returns The fresh or cached value
+   * @throws Error if both function fails and no cache available
+   */
+  fallback<T>(key: string, fn: () => T | Promise<T>, ttl?: number): Promise<T>;
 }
 
 declare namespace SimpleCache {

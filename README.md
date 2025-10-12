@@ -4,9 +4,11 @@
 [![npm downloads](https://img.shields.io/npm/dm/simple-cache-id.svg?style=flat-square)](https://www.npmjs.com/package/simple-cache-id)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![CI](https://github.com/ibnushahraa/simple-cache-id/actions/workflows/test.yml/badge.svg)](https://github.com/ibnushahraa/simple-cache-id/actions)
+[![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen.svg?style=flat-square)](https://github.com/ibnushahraa/simple-cache-id)
 
-🔑 A lightweight **in-memory cache** for Node.js with **default TTL**, **persistent storage**, and a simple `wrap()` helper.
-Think of it as a **tiny Redis-like cache** without any dependencies.
+🔑 A lightweight **in-memory cache** for Node.js with **default TTL**, **persistent storage**, and powerful caching strategies: `wrap()` for cache-first and `fallback()` for fresh-first with resilient fallback.
+
+**Perfect for API caching, external service calls, and offline-first applications.** Think of it as a **tiny Redis-like cache** without any dependencies.
 
 ---
 
@@ -17,6 +19,7 @@ Think of it as a **tiny Redis-like cache** without any dependencies.
 - Auto-expiration with `setInterval` cleanup.
 - **Persistent storage to binary file (.sdb)** - cache survives restarts!
 - `wrap()` helper: fetch from cache or compute if missing.
+- `fallback()` helper: fetch fresh data first, use cache as fallback if error.
 - Delete, flush, and stats API.
 - **Supports both CommonJS (`require`) and ES6 Modules (`import`)**.
 - TypeScript definitions included.
@@ -29,6 +32,34 @@ Think of it as a **tiny Redis-like cache** without any dependencies.
 ```bash
 npm install simple-cache-id
 ```
+
+---
+
+## 🚀 Quick Start
+
+### Two Powerful Caching Strategies
+
+```js
+const SimpleCache = require("simple-cache-id");
+const cache = new SimpleCache(60); // 60s default TTL
+
+// 🎯 wrap() - Cache-first (fast, great for static data)
+const user = await cache.wrap("user:1", async () => {
+  return await fetchFromDB(1); // Only called if not cached
+});
+
+// 🔄 fallback() - Fresh-first (resilient, great for APIs)
+const weather = await cache.fallback("weather:jakarta", async () => {
+  return await fetchWeatherAPI(); // Tries fresh data first
+  // Falls back to cache if API fails ✨
+});
+```
+
+**Why use `fallback()`?**
+- ✅ Always tries to get fresh data first
+- ✅ Resilient to API failures with automatic cache fallback
+- ✅ Perfect for external APIs, network requests, and real-time data
+- ✅ Provides offline support automatically
 
 ---
 
@@ -287,6 +318,46 @@ const result = await cache.wrap("expensive-op", async () => {
 }, 3600);
 ```
 
+### `fallback(key, fn, ttl?)`
+
+Try to get fresh data first, use cache as fallback if error occurs.
+This is the opposite of `wrap()` - it prioritizes fresh data over cached data.
+
+**Parameters:**
+- `key` (string): Cache key
+- `fn` (function): Function to fetch fresh data
+- `ttl` (number, optional): Override TTL in seconds
+
+**Returns:** Promise resolving to fresh or cached value
+
+**Throws:** Error if both function fails and no cache available
+
+**Behavior:**
+1. Try to execute `fn()` to get fresh data
+2. If successful, cache the result and return it
+3. If failed, try to get from cache
+4. If cache exists, return cached value
+5. If no cache, throw the original error
+
+**Example:**
+```js
+// Fetch fresh data from API, use cache if API fails
+const weather = await cache.fallback("weather:jakarta", async () => {
+  // This might fail due to network issues
+  return await fetchWeatherAPI("Jakarta");
+}, 300);
+```
+
+**Use Cases:**
+- API calls with fallback to cached data
+- External service calls with resilience
+- Real-time data with stale-data fallback
+- Network requests with offline support
+
+**Comparison:**
+- `wrap()`: Cache-first (fast, may serve stale data)
+- `fallback()`: Fresh-first (fresh data, resilient to failures)
+
 ---
 
 ## 💾 Persistent Storage
@@ -325,25 +396,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 - Submit pull requests
 - Improve documentation
 - Develop plugins
-
----
-
-## 🗺️ Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for planned features and future development.
-
-**Upcoming:**
-- **v1.3.0** - LRU eviction, Events/Hooks, Periodic auto-save
-- **v1.4.0** - Compression, Batch operations, Namespace support
-- **v1.5.0** - Plugin system (OTP validator, Rate limiter, Session manager, etc.)
-
-**Plugins (coming soon):**
-```js
-// Optional plugins that use simple-cache-id core
-const OTPValidator = require('simple-cache-id/otp-validator');
-const RateLimiter = require('simple-cache-id/rate-limiter');
-const SessionManager = require('simple-cache-id/session');
-```
 
 ---
 

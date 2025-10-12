@@ -1,7 +1,7 @@
 {
   "name": "simple-cache-id",
-  "version": "1.2.2",
-  "description": "A lightweight in-memory cache for Node.js with default TTL, persistent storage, and wrap() helper.",
+  "version": "1.3.0",
+  "description": "A lightweight in-memory cache for Node.js with default TTL, persistent storage, wrap() and fallback() helpers for resilient caching strategies.",
   "main": "src/index.js",
   "module": "src/index.mjs",
   "types": "index.d.ts",
@@ -13,7 +13,8 @@
     }
   },
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [
     "cache",
@@ -21,6 +22,7 @@
     "ttl",
     "node-cache",
     "wrap",
+    "fallback",
     "simple-cache",
     "javascript",
     "nodejs",

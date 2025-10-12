@@ -168,6 +168,107 @@ describe("SimpleCache", () => {
         });
     });
 
+    // Fallback tests
+    it("should get fresh data first with fallback", async () => {
+        let calls = 0;
+        const fn = async () => {
+            calls++;
+            return "fresh-data";
+        };
+
+        const result = await cache.fallback("key1", fn);
+
+        expect(result).toBe("fresh-data");
+        expect(calls).toBe(1);
+        expect(cache.get("key1")).toBe("fresh-data"); // cached after success
+    });
+
+    it("should use cache as fallback when function fails", async () => {
+        // Set initial cache
+        cache.set("key2", "cached-data");
+
+        let calls = 0;
+        const fn = async () => {
+            calls++;
+            throw new Error("Network error");
+        };
+
+        const result = await cache.fallback("key2", fn);
+
+        expect(result).toBe("cached-data");
+        expect(calls).toBe(1); // fn was called but failed
+    });
+
+    it("should throw error when both function fails and no cache", async () => {
+        const fn = async () => {
+            throw new Error("API error");
+        };
+
+        await expect(cache.fallback("key3", fn)).rejects.toThrow("API error");
+    });
+
+    it("should update cache when fresh data succeeds", async () => {
+        // Set old cache
+        cache.set("key4", "old-data");
+
+        const fn = async () => {
+            return "new-data";
+        };
+
+        const result = await cache.fallback("key4", fn);
+
+        expect(result).toBe("new-data");
+        expect(cache.get("key4")).toBe("new-data"); // cache updated
+    });
+
+    it("should work with sync function in fallback", async () => {
+        const fn = () => {
+            return "sync-data";
+        };
+
+        const result = await cache.fallback("key5", fn);
+
+        expect(result).toBe("sync-data");
+        expect(cache.get("key5")).toBe("sync-data");
+    });
+
+    it("should use fallback with custom ttl", async () => {
+        const fn = () => "value";
+
+        await cache.fallback("key6", fn, 1);
+        expect(cache.get("key6")).toBe("value");
+
+        // Wait for expiration
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        expect(cache.get("key6")).toBeNull();
+    });
+
+    it("should prefer fresh data over stale cache", async () => {
+        cache.set("key7", "stale-data");
+
+        const fn = async () => {
+            return "fresh-data";
+        };
+
+        const result = await cache.fallback("key7", fn);
+
+        expect(result).toBe("fresh-data"); // fresh data wins
+        expect(cache.get("key7")).toBe("fresh-data"); // cache updated
+    });
+
+    it("should handle complex data types in fallback", async () => {
+        const oldData = { id: 1, name: "Old" };
+        cache.set("key8", oldData);
+
+        const fn = async () => {
+            throw new Error("Failed");
+        };
+
+        const result = await cache.fallback("key8", fn);
+
+        expect(result).toEqual(oldData);
+    });
+
     it("should destroy cache properly", () => {
         cache.set("key", "value", 10);
         expect(cache.cleanupInterval).not.toBeNull();

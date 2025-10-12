@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-10-12
+
+### Added
+- **`fallback()` method**: New caching strategy that prioritizes fresh data with cache fallback
+  - Tries to fetch fresh data first from provided function
+  - Uses cached data as fallback if function fails/throws error
+  - Throws error only if both function fails and no cache available
+  - Supports custom TTL like `wrap()`
+  - Ideal for API calls with resilience to network failures
+- **Example file**: `example/fallback.js` with comprehensive usage examples
+  - Real-world scenarios (weather API, user data)
+  - Comparison between `wrap()` vs `fallback()` strategies
+  - Error handling demonstrations
+- **Test coverage**: 8 new test cases for `fallback()` functionality
+  - Fresh data fetching
+  - Cache fallback on error
+  - Error propagation when no cache
+  - Custom TTL support
+  - Complex data types handling
+
+### Changed
+- **README.md**: Added complete documentation for `fallback()` method
+  - API reference with parameters and return values
+  - Behavior explanation (5-step process)
+  - Use cases and comparison with `wrap()`
+  - Code examples
+
+### Improved
+- Enhanced error resilience for applications using external APIs
+- Better TypeScript support with full type definitions for `fallback()`
+- More flexible caching strategies (cache-first vs fresh-first)
+
 ## [1.2.2] - 2025-10-09
 
 ### Added

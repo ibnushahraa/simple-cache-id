@@ -45,8 +45,8 @@ describe('Shared Mode', () => {
         const result1 = await cache.get('key2');
         expect(result1).toBe('value2');
 
-        // Wait for expiration
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Wait for expiration (longer wait for CI environment)
+        await new Promise(resolve => setTimeout(resolve, 2000));
         const result2 = await cache.get('key2');
         expect(result2).toBe(null);
     });

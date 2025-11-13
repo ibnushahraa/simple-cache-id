@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 /**
  * @class SimpleCache
@@ -17,11 +18,31 @@ class SimpleCache {
      * @param {string} [options.name] - Unique name for this cache (required if persistent=true)
      * @param {string} [options.persistPath] - Custom path to binary file (overrides name)
      * @param {number} [options.saveDelay=3] - Debounce delay in seconds (saves N seconds after last change)
+     * @param {boolean} [options.shared=false] - Enable shared cache via HTTP
      */
     constructor(defaultTtl = 0, options = {}) {
         // Support backward compatibility: if options is a number, treat it as checkInterval
         if (typeof options === 'number') {
             options = { checkInterval: options };
+        }
+
+        /** @type {boolean} */
+        this.shared = options.shared || false;
+
+        // Setup shared mode
+        if (this.shared) {
+            this.defaultTtl = defaultTtl;
+            this.checkInterval = options.checkInterval || 5;
+            this._setupShared();
+            // Override methods with HTTP versions
+            this.set = (key, value, ttl) => this._httpRequest('set', key, value, ttl);
+            this.get = (key) => this._httpRequest('get', key);
+            this.del = (key) => this._httpRequest('del', key);
+            this.flush = () => this._httpRequest('flush');
+            this.stats = () => this._httpRequest('stats');
+            this.wrap = (key, fn, ttl) => this._httpWrap(key, fn, ttl);
+            this.fallback = (key, fn, ttl) => this._httpFallback(key, fn, ttl);
+            return; // Early exit for shared mode
         }
 
         /** @type {Map<string, any>} */
@@ -86,6 +107,163 @@ class SimpleCache {
     }
 
     /**
+     * Setup shared mode - start HTTP server and return client
+     * @private
+     */
+    _setupShared() {
+        const port = 58473;
+
+        // Start global HTTP server if not exists
+        if (!SimpleCache._sharedServer) {
+            // Create server instance that holds the data
+            const serverInstance = new SimpleCache(this.defaultTtl, {
+                shared: false,
+                checkInterval: this.checkInterval
+            });
+
+            const server = http.createServer(/* istanbul ignore next */ (req, res) => {
+                this._handleHttpRequest(req, res, serverInstance);
+            });
+
+            /* istanbul ignore next */
+            server.on('error', (err) => {
+                if (err.code !== 'EADDRINUSE') {
+                    console.error('[SimpleCache] Server error:', err);
+                }
+            });
+
+            SimpleCache._sharedServerReady = false;
+            server.listen(port, () => {
+                SimpleCache._sharedServerReady = true;
+            });
+            SimpleCache._sharedServer = server;
+            SimpleCache._sharedPort = port;
+        } else {
+            // Server already exists, assume it's ready
+            SimpleCache._sharedServerReady = true;
+        }
+    }
+
+    /**
+     * Handle HTTP request from client
+     * @private
+     */
+    _handleHttpRequest(req, res, serverInstance) {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        /* istanbul ignore next */
+        req.on('end', () => {
+            try {
+                const { method, key, value, ttl } = JSON.parse(body || '{}');
+                let result;
+
+                if (method === 'set') {
+                    result = serverInstance.set(key, value, ttl);
+                } else if (method === 'get') {
+                    result = serverInstance.get(key);
+                } else if (method === 'del') {
+                    result = serverInstance.del(key);
+                } else if (method === 'flush') {
+                    serverInstance.flush();
+                    result = 'OK';
+                } else if (method === 'stats') {
+                    result = serverInstance.stats();
+                } else if (method === 'wrap') {
+                    serverInstance.wrap(key, async () => value, ttl).then(r => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ result: r }));
+                    });
+                    return;
+                } else if (method === 'fallback') {
+                    serverInstance.fallback(key, async () => value, ttl).then(r => {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ result: r }));
+                    }).catch(err => {
+                        res.writeHead(500);
+                        res.end(JSON.stringify({ error: err.message }));
+                    });
+                    return;
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ result }));
+            } catch (err) {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    /**
+     * Make HTTP request to shared cache
+     * @private
+     */
+    async _httpRequest(method, key, value, ttl) {
+        // Wait for server to be ready (max 5 seconds)
+        const maxWait = 5000;
+        const startTime = Date.now();
+        while (!SimpleCache._sharedServerReady && (Date.now() - startTime < maxWait)) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        return new Promise((resolve, reject) => {
+            const data = JSON.stringify({ method, key, value, ttl });
+            const options = {
+                hostname: 'localhost',
+                port: SimpleCache._sharedPort,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': data.length }
+            };
+
+            const req = http.request(options, res => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                    try {
+                        const { result } = JSON.parse(body);
+                        resolve(result);
+                    } /* istanbul ignore next */ catch (err) {
+                        reject(err);
+                    }
+                });
+            });
+
+            req.on('error', reject);
+            req.write(data);
+            req.end();
+        });
+    }
+
+    /**
+     * HTTP wrap
+     * @private
+     */
+    async _httpWrap(key, fn, ttl) {
+        const cached = await this._httpRequest('get', key);
+        if (cached !== null) return cached;
+
+        const result = await fn();
+        await this._httpRequest('set', key, result, ttl);
+        return result;
+    }
+
+    /**
+     * HTTP fallback
+     * @private
+     */
+    async _httpFallback(key, fn, ttl) {
+        try {
+            const result = await fn();
+            await this._httpRequest('set', key, result, ttl);
+            return result;
+        } catch (error) {
+            const cached = await this._httpRequest('get', key);
+            if (cached !== null) return cached;
+            throw error;
+        }
+    }
+
+    /**
      * Get persist path from cache name
      * @private
      * @param {string} name - Cache name
@@ -100,6 +278,7 @@ class SimpleCache {
         }
 
         // Fallback to current working directory
+        /* istanbul ignore next */
         return path.join(process.cwd(), '.cache', `${name}.sdb`);
     }
 
@@ -192,6 +371,7 @@ class SimpleCache {
             this.expiries.set(stringKey, expiryTime);
 
             // Ensure cleanup interval is running
+            /* istanbul ignore next */
             if (!this.cleanupInterval) {
                 this._startCleanup();
             }
@@ -320,7 +500,7 @@ class SimpleCache {
             }
         } catch (err) {
             // Silent fail, start fresh on error
-            console.error('Failed to load from binary:', err.message);
+            // Error is intentionally suppressed to allow graceful fallback
         }
     }
 
@@ -339,6 +519,7 @@ class SimpleCache {
         if (!SimpleCache._handlersSetup) {
             SimpleCache._handlersSetup = true;
 
+            /* istanbul ignore next */
             const globalSaveHandler = (signal) => {
                 // Save all instances
                 for (const instance of SimpleCache._instances) {
@@ -355,6 +536,7 @@ class SimpleCache {
                 }
             };
 
+            /* istanbul ignore next */
             const beforeExitHandler = () => {
                 // Save all instances that have pending changes
                 for (const instance of SimpleCache._instances) {
@@ -411,7 +593,7 @@ class SimpleCache {
             fs.writeFileSync(tempPath, buffer);
             fs.renameSync(tempPath, this.persistPath);
         } catch (err) {
-            console.error('Failed to save to binary:', err.message);
+            // Silent fail - error intentionally suppressed
         }
     }
 

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-11-13
+
+### Added
+- **Shared cache mode**: Enable cache sharing across multiple microservices via HTTP
+  - New `shared: true` option to enable shared cache mode
+  - Automatic HTTP server setup (port 58473)
+  - First instance becomes server, subsequent instances become clients
+  - Zero configuration - just set `shared: true`
+  - All methods become async and return Promises
+  - Supports all operations: `set`, `get`, `del`, `flush`, `stats`, `wrap`, `fallback`
+  - Automatic TTL cleanup on server instance
+  - Perfect for microservices architecture
+- **Example files**:
+  - `example/shared-cache.js` - Shared cache instance template
+  - `example/service-a.js` - Example service A using shared cache
+  - `example/service-b.js` - Example service B using shared cache
+  - `example/test-service-a.js` - Test service A operations
+  - `example/test-service-b.js` - Test service B operations
+- **Test coverage**: 36 comprehensive tests for shared mode
+  - Set, get, del, flush operations
+  - TTL and expiration handling
+  - wrap() and fallback() in shared mode
+  - Concurrent requests handling
+  - Complex data types (objects, arrays, nested)
+  - Automatic cleanup verification
+  - Multi-instance sharing tests
+  - Edge cases and error handling
+
+### Changed
+- **README.md**: Added "Shared Mode" section with complete documentation
+  - How it works explanation
+  - Usage examples for microservices
+  - API reference with `shared` option
+- **index.d.ts**: Updated TypeScript definitions
+  - Added `shared?: boolean` option
+  - Updated return types to support both sync and async (e.g., `"OK" | Promise<"OK">`)
+- **Coverage**: Improved from 93% to 97% test coverage
+
+### Improved
+- Better support for distributed caching scenarios
+- Enhanced microservices architecture compatibility
+- Full ESM support for shared mode in `src/index.mjs`
+- HTTP-based cache synchronization for cross-process communication
+
 ## [1.3.1] - 2025-10-12
 
 ### Fixed

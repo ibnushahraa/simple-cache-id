@@ -132,9 +132,15 @@ class SimpleCache {
                 }
             });
 
-            server.listen(port);
+            SimpleCache._sharedServerReady = false;
+            server.listen(port, () => {
+                SimpleCache._sharedServerReady = true;
+            });
             SimpleCache._sharedServer = server;
             SimpleCache._sharedPort = port;
+        } else {
+            // Server already exists, assume it's ready
+            SimpleCache._sharedServerReady = true;
         }
     }
 
@@ -193,6 +199,13 @@ class SimpleCache {
      * @private
      */
     async _httpRequest(method, key, value, ttl) {
+        // Wait for server to be ready (max 5 seconds)
+        const maxWait = 5000;
+        const startTime = Date.now();
+        while (!SimpleCache._sharedServerReady && (Date.now() - startTime < maxWait)) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
         return new Promise((resolve, reject) => {
             const data = JSON.stringify({ method, key, value, ttl });
             const options = {

@@ -4,26 +4,21 @@ const http = require('http');
 describe('Shared Mode', () => {
     let cache;
 
-    beforeEach(() => {
-        // Clean up shared server if exists
+    afterAll(async () => {
+        // Clean up shared server at the end of all tests
         if (SimpleCache._sharedServer) {
-            SimpleCache._sharedServer.close();
-            SimpleCache._sharedServer = null;
-        }
-    });
-
-    afterEach((done) => {
-        if (SimpleCache._sharedServer) {
-            SimpleCache._sharedServer.close(() => {
-                SimpleCache._sharedServer = null;
-                done();
+            await new Promise((resolve) => {
+                SimpleCache._sharedServer.close(() => {
+                    SimpleCache._sharedServer = null;
+                    SimpleCache._sharedPort = null;
+                    SimpleCache._sharedServerReady = false;
+                    resolve();
+                });
             });
-        } else {
-            done();
         }
     });
 
-    test('should create cache with shared mode', () => {
+    test('should create cache with shared mode', async () => {
         cache = new SimpleCache(60, { shared: true });
         expect(cache.shared).toBe(true);
         expect(SimpleCache._sharedServer).toBeDefined();

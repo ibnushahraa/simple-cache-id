@@ -482,7 +482,7 @@ class SimpleCache {
             }
         } catch (err) {
             // Silent fail, start fresh on error
-            console.error('Failed to load from binary:', err.message);
+            // Error is intentionally suppressed to allow graceful fallback
         }
     }
 
@@ -575,7 +575,7 @@ class SimpleCache {
             fs.writeFileSync(tempPath, buffer);
             fs.renameSync(tempPath, this.persistPath);
         } catch (err) {
-            console.error('Failed to save to binary:', err.message);
+            // Silent fail - error intentionally suppressed
         }
     }
 

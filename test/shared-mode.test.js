@@ -39,7 +39,7 @@ describe('Shared Mode', () => {
     });
 
     test('should set with TTL in shared mode', async () => {
-        cache = new SimpleCache(60, { shared: true });
+        cache = new SimpleCache(60, { shared: true, checkInterval: 1 });
 
         await cache.set('key2', 'value2', 1);
         const result1 = await cache.get('key2');

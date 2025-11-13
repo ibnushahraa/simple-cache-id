@@ -116,10 +116,9 @@ class SimpleCache {
         // Start global HTTP server if not exists
         if (!SimpleCache._sharedServer) {
             // Create server instance that holds the data
-            // Use minimum 1 second checkInterval for responsive TTL cleanup
             const serverInstance = new SimpleCache(this.defaultTtl, {
                 shared: false,
-                checkInterval: Math.min(this.checkInterval, 1)
+                checkInterval: this.checkInterval
             });
 
             const server = http.createServer(/* istanbul ignore next */ (req, res) => {

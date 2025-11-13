@@ -32,6 +32,12 @@ interface SimpleCacheOptions {
    * @default 3
    */
   saveDelay?: number;
+
+  /**
+   * Enable shared cache via HTTP (all methods become async)
+   * @default false
+   */
+  shared?: boolean;
 }
 
 /**
@@ -50,28 +56,28 @@ declare class SimpleCache {
    * @param key - Unique cache key
    * @param value - Value to store
    * @param ttl - TTL in seconds, defaults to constructor TTL
-   * @returns "OK"
+   * @returns "OK" (or Promise when shared mode)
    */
-  set(key: string, value: any, ttl?: number): "OK";
+  set(key: string, value: any, ttl?: number): "OK" | Promise<"OK">;
 
   /**
    * Retrieve a value from the cache
    * @param key - Cache key
-   * @returns The cached value or null if not found
+   * @returns The cached value or null if not found (or Promise when shared mode)
    */
-  get<T = any>(key: string): T | null;
+  get<T = any>(key: string): T | null | Promise<T | null>;
 
   /**
    * Delete a key from the cache
    * @param key - Cache key
-   * @returns 1 if deleted, 0 if not found
+   * @returns 1 if deleted, 0 if not found (or Promise when shared mode)
    */
-  del(key: string): number;
+  del(key: string): number | Promise<number>;
 
   /**
    * Clear all cache entries
    */
-  flush(): void;
+  flush(): void | Promise<void>;
 
   /**
    * Destroy cache instance, stop all intervals, and save to binary if persistent=true
@@ -80,9 +86,9 @@ declare class SimpleCache {
 
   /**
    * Get cache statistics
-   * @returns Object containing number of keys
+   * @returns Object containing number of keys (or Promise when shared mode)
    */
-  stats(): { keys: number };
+  stats(): { keys: number } | Promise<{ keys: number }>;
 
   /**
    * Return cached value or compute and cache it
@@ -111,6 +117,7 @@ declare namespace SimpleCache {
     name?: string;
     persistPath?: string;
     saveDelay?: number;
+    shared?: boolean;
   }
 }
 

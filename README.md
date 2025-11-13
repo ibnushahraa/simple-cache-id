@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/simple-cache-id.svg?style=flat-square)](https://www.npmjs.com/package/simple-cache-id)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![CI](https://github.com/ibnushahraa/simple-cache-id/actions/workflows/test.yml/badge.svg)](https://github.com/ibnushahraa/simple-cache-id/actions)
-[![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen.svg?style=flat-square)](https://github.com/ibnushahraa/simple-cache-id)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg?style=flat-square)](https://github.com/ibnushahraa/simple-cache-id)
 
 🔑 A lightweight **in-memory cache** for Node.js with **default TTL**, **persistent storage**, and powerful caching strategies: `wrap()` for cache-first and `fallback()` for fresh-first with resilient fallback.
 
@@ -18,6 +18,7 @@
 - Global default TTL set in constructor.
 - Auto-expiration with `setInterval` cleanup.
 - **Persistent storage to binary file (.sdb)** - cache survives restarts!
+- **Shared cache mode** - share cache across multiple microservices via HTTP!
 - `wrap()` helper: fetch from cache or compute if missing.
 - `fallback()` helper: fetch fresh data first, use cache as fallback if error.
 - Delete, flush, and stats API.
@@ -183,6 +184,44 @@ console.log(cache3.get("user:1")); // { id: 1, name: "Alice" }
 console.log(cache3.get("config")); // { theme: "dark" }
 ```
 
+### Shared Mode - Cache Across Multiple Services
+
+Share cache between multiple microservices using HTTP (zero config, automatic):
+
+```js
+// shared-cache.js - Create shared cache instance
+const SimpleCache = require("simple-cache-id");
+const cache = new SimpleCache(60, { shared: true });
+module.exports = cache;
+
+// Service A (separate process)
+const cache = require('./shared-cache');
+await cache.set('user:1', { name: 'Alice' });
+
+// Service B (separate process)
+const cache = require('./shared-cache');
+const user = await cache.get('user:1'); // Gets { name: 'Alice' } from Service A!
+```
+
+**How it works:**
+- First instance automatically starts HTTP server (holds data in memory)
+- All other instances become clients (send requests to server)
+- All methods become async - use `await`
+- Perfect for microservices architecture
+
+**Example:**
+```js
+// Service A
+const cache = require('./shared-cache');
+await cache.set('products', [...]);
+await cache.set('config', {...});
+
+// Service B (different process)
+const cache = require('./shared-cache');
+const products = await cache.get('products'); // Shared data!
+const stats = await cache.stats(); // { keys: 2 }
+```
+
 ### Backward Compatibility
 
 ```js
@@ -230,8 +269,11 @@ Create a new cache instance with an optional default TTL (in seconds).
   - `name` (string): **Required if `persistent=true`** - Unique cache name (creates `./.cache/{name}.sdb`)
   - `persistPath` (string): Custom path to binary file (overrides `name`)
   - `saveDelay` (number): Debounce delay in seconds before auto-save (default: 3)
+  - `shared` (boolean): Enable shared cache mode via HTTP - all methods become async (default: false)
 
-**Important:** When `persistent: true`, you must provide either `name` or `persistPath`.
+**Important:**
+- When `persistent: true`, you must provide either `name` or `persistPath`.
+- When `shared: true`, all methods return Promises - use `await`.
 
 **Example:**
 ```js
@@ -247,6 +289,11 @@ const cache = new SimpleCache(10, {
 const cache2 = new SimpleCache(10, {
   persistent: true,
   persistPath: './data/cache.sdb'
+});
+
+// Using shared mode (for microservices)
+const cache3 = new SimpleCache(60, {
+  shared: true // All methods become async
 });
 ```
 
